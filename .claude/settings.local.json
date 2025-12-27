@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --version:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(pnpm create:*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm prisma:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(pnpm tsx:*)"
+    ]
+  }
+}

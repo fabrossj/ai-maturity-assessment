@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model QuestionnaireVersion {
+  id            String   @id @default(cuid())
+  versionNumber Int      @unique
+  status        VersionStatus @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  areas         Area[]
+  assessments   AssessmentResponse[]
+
+  @@map("questionnaire_versions")
+}
+
+enum VersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Area {
+  id                    String   @id @default(cuid())
+  questionnaireVersionId String
+  questionnaireVersion  QuestionnaireVersion @relation(fields: [questionnaireVersionId], references: [id], onDelete: Cascade)
+
+  code        String
+  name        String
+  description String?
+  weight      Float
+  order       Int
+
+  elements    Element[]
+
+  @@unique([questionnaireVersionId, code])
+  @@map("areas")
+}
+
+model Element {
+  id      String @id @default(cuid())
+  areaId  String
+  area    Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  code        String
+  name        String
+  description String?
+  weight      Float @default(0.3333)
+  order       Int
+
+  questions   Question[]
+
+  @@unique([areaId, code])
+  @@map("elements")
+}
+
+model Question {
+  id        String @id @default(cuid())
+  elementId String
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+
+  code              String
+  questionText      String
+  levelsDescription String
+  order             Int
+  scaleMin          Int @default(0)
+  scaleMax          Int @default(5)
+
+  @@unique([elementId, code])
+  @@map("questions")
+}
+
+model AssessmentResponse {
+  id                    String   @id @default(cuid())
+  questionnaireVersionId String
+  questionnaireVersion  QuestionnaireVersion @relation(fields: [questionnaireVersionId], references: [id])
+
+  userEmail     String
+  userName      String?
+  userToken     String @unique
+
+  status        AssessmentStatus @default(DRAFT)
+  startedAt     DateTime @default(now())
+  submittedAt   DateTime?
+
+  answers           Json
+  notes             Json?
+  calculatedScores  Json?
+
+  pdfUrl            String?
+  pdfGeneratedAt    DateTime?
+  emailSentAt       DateTime?
+
+  consentGiven          Boolean @default(false)
+  dataRetentionUntil    DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userEmail])
+  @@index([status, submittedAt])
+  @@map("assessment_responses")
+}
+
+enum AssessmentStatus {
+  DRAFT
+  SUBMITTED
+  PDF_GENERATED
+  EMAIL_SENT
+  FAILED
+}
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  SUPER_ADMIN
+}
