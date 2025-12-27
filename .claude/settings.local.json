@@ -10,7 +10,13 @@
       "Bash(pnpm prisma:*)",
       "Bash(pnpm tsc:*)",
       "Bash(pnpm tsx:*)",
-      "Bash(pnpm vitest:*)"
+      "Bash(pnpm vitest:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(test:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm list:*)",
+      "Bash(pnpm build:*)"
     ]
   }
 }
