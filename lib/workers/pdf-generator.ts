@@ -1,13 +1,27 @@
 import puppeteer from 'puppeteer';
 import { prisma } from '@/lib/db';
 
+interface ElementScore {
+  code: string;
+  answerA: number;
+  answerB: number;
+  average: number;
+  percentage: number;
+}
+
+interface AreaScore {
+  code: string;
+  name: string;
+  elements: ElementScore[];
+  areaPercentage: number;
+  weight: number;
+  contribution: number;
+}
+
 interface CalculatedScores {
   totalScore: number;
   maturityLevel: string;
-  areaScores: Record<string, {
-    score: number;
-    elementScores: Record<string, number>;
-  }>;
+  areas: AreaScore[];
 }
 
 export async function generatePDF(assessmentId: string): Promise<Buffer> {
@@ -39,7 +53,7 @@ export async function generatePDF(assessmentId: string): Promise<Buffer> {
     throw new Error(`Assessment ${assessmentId} has no calculated scores`);
   }
 
-  const scores = assessment.calculatedScores as CalculatedScores;
+  const scores = assessment.calculatedScores as unknown as CalculatedScores;
 
   const html = generateHTMLReport(assessment, scores);
 
@@ -62,28 +76,26 @@ export async function generatePDF(assessmentId: string): Promise<Buffer> {
       printBackground: true
     });
 
-    return pdf;
+    return Buffer.from(pdf);
   } finally {
     await browser.close();
   }
 }
 
 function generateHTMLReport(assessment: any, scores: CalculatedScores): string {
-  const areaScoresHTML = Object.entries(scores.areaScores)
-    .map(([areaCode, areaData]) => {
-      const area = assessment.questionnaireVersion.areas.find((a: any) => a.code === areaCode);
+  const areaScoresHTML = scores.areas
+    .map((area) => {
       return `
         <div class="area-score">
-          <h3>${area?.name || areaCode}</h3>
-          <div class="score-value">${areaData.score.toFixed(1)}/5.0</div>
+          <h3>${area.name}</h3>
+          <div class="score-value">${(area.areaPercentage / 20).toFixed(1)}/5.0</div>
           <div class="elements">
-            ${Object.entries(areaData.elementScores)
-              .map(([elementCode, elementScore]) => {
-                const element = area?.elements.find((e: any) => e.code === elementCode);
+            ${area.elements
+              .map((element) => {
                 return `
                   <div class="element-score">
-                    <span class="element-name">${element?.name || elementCode}:</span>
-                    <span class="element-value">${elementScore.toFixed(1)}/5.0</span>
+                    <span class="element-name">${element.code}:</span>
+                    <span class="element-value">${(element.percentage / 20).toFixed(1)}/5.0</span>
                   </div>
                 `;
               })

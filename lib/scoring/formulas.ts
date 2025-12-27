@@ -46,42 +46,78 @@ export function calculateFullAssessment(
   answers: Record<string, number>,
   config: any
 ): TotalScore {
-  const areas: AreaScore[] = [];
+  try {
+    console.log('🔢 calculateFullAssessment started');
+    console.log('   Answers count:', Object.keys(answers).length);
+    console.log('   Areas count:', config.areas?.length || 0);
 
-  for (const area of config.areas) {
-    const elementScores: ElementScore[] = [];
+    const areas: AreaScore[] = [];
 
-    for (const element of area.elements) {
-      const [q1, q2] = element.questions;
-      const answerA = answers[q1.code];
-      const answerB = answers[q2.code];
+    for (const area of config.areas) {
+      console.log(`   Processing area: ${area.code} - ${area.name}`);
+      const elementScores: ElementScore[] = [];
 
-      const percentage = calculateElementScore(answerA, answerB);
+      for (const element of area.elements) {
+        const [q1, q2] = element.questions;
 
-      elementScores.push({
-        code: element.code,
-        answerA,
-        answerB,
-        average: (answerA + answerB) / 2,
-        percentage
+        if (!q1 || !q2) {
+          console.warn(`   ⚠️ Missing questions for element ${element.code}`);
+          continue;
+        }
+
+        const answerA = answers[q1.code];
+        const answerB = answers[q2.code];
+
+        if (answerA === undefined || answerB === undefined) {
+          console.warn(`   ⚠️ Missing answers for element ${element.code}: A=${answerA}, B=${answerB}`);
+          continue;
+        }
+
+        const percentage = calculateElementScore(answerA, answerB);
+
+        elementScores.push({
+          code: element.code,
+          answerA,
+          answerB,
+          average: (answerA + answerB) / 2,
+          percentage
+        });
+      }
+
+      if (elementScores.length === 0) {
+        console.warn(`   ⚠️ No valid element scores for area ${area.code}`);
+        continue;
+      }
+
+      const areaPercentage = calculateAreaScore(elementScores.map(e => e.percentage));
+      const contribution = areaPercentage * area.weight;
+
+      areas.push({
+        code: area.code,
+        name: area.name,
+        elements: elementScores,
+        areaPercentage,
+        weight: area.weight,
+        contribution
       });
     }
 
-    const areaPercentage = calculateAreaScore(elementScores.map(e => e.percentage));
-    const contribution = areaPercentage * area.weight;
+    if (areas.length === 0) {
+      throw new Error('No valid areas calculated');
+    }
 
-    areas.push({
-      code: area.code,
-      name: area.name,
-      elements: elementScores,
-      areaPercentage,
-      weight: area.weight,
-      contribution
+    const totalScore = calculateTotalScore(areas.map(a => a.contribution));
+    const maturityLevel = classifyMaturityLevel(totalScore);
+
+    console.log('✅ calculateFullAssessment completed:', {
+      areasCount: areas.length,
+      totalScore,
+      maturityLevel
     });
+
+    return { areas, totalScore, maturityLevel };
+  } catch (error) {
+    console.error('❌ Error in calculateFullAssessment:', error);
+    throw error;
   }
-
-  const totalScore = calculateTotalScore(areas.map(a => a.contribution));
-  const maturityLevel = classifyMaturityLevel(totalScore);
-
-  return { areas, totalScore, maturityLevel };
 }

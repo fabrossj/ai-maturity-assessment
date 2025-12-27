@@ -24,7 +24,8 @@ export async function GET(
       );
     }
 
-    if (assessment.status !== 'SUBMITTED') {
+    // Accept SUBMITTED, PDF_GENERATED, and EMAIL_SENT statuses
+    if (!['SUBMITTED', 'PDF_GENERATED', 'EMAIL_SENT'].includes(assessment.status)) {
       return NextResponse.json(
         { error: 'Assessment not yet submitted' },
         { status: 400 }

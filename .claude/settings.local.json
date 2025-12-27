@@ -18,7 +18,8 @@
       "Bash(pnpm list:*)",
       "Bash(pnpm build:*)",
       "Bash(pnpm test:unit:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(pnpm remove:*)"
     ]
   }
 }
