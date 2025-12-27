@@ -17,7 +17,8 @@
       "Bash(cat:*)",
       "Bash(pnpm list:*)",
       "Bash(pnpm build:*)",
-      "Bash(pnpm test:unit:*)"
+      "Bash(pnpm test:unit:*)",
+      "Bash(mkdir:*)"
     ]
   }
 }
