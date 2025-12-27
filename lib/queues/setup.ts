@@ -1,10 +1,20 @@
-// Placeholder for queue setup
-// This will be implemented in a future phase (P4 or later)
+import { Queue } from 'bullmq';
+import { redis } from '@/lib/workers/redis';
 
-export const pdfQueue = {
-  add: async (jobName: string, data: any) => {
-    console.log(`[Queue] Job added: ${jobName}`, data);
-    // Future implementation will use BullMQ or similar
-    return { id: `job-${Date.now()}` };
+export const pdfQueue = new Queue('pdf-generation', {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000
+    },
+    removeOnComplete: {
+      age: 24 * 3600, // Keep completed jobs for 24 hours
+      count: 1000
+    },
+    removeOnFail: {
+      age: 7 * 24 * 3600 // Keep failed jobs for 7 days
+    }
   }
-};
+});
