@@ -9,6 +9,7 @@
     "lint": "next lint",
     "db:seed": "tsx prisma/seed.ts",
     "worker:pdf": "tsx workers/pdf-worker.ts",
+    "worker:email": "tsx workers/email-worker.ts",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
@@ -16,6 +17,7 @@
     "test:flow": "tsx scripts/test-full-flow.ts",
     "test:api": "tsx scripts/test-api-endpoints.ts",
     "test:pdf": "tsx scripts/test-pdf.ts",
+    "test:email": "tsx scripts/test-email.ts",
     "test:all": "pnpm vitest run && pnpm test:flow"
   },
   "prisma": {

@@ -115,6 +115,7 @@ enum AssessmentStatus {
   PDF_GENERATED
   EMAIL_SENT
   FAILED
+  EMAIL_FAILED
 }
 
 model User {
