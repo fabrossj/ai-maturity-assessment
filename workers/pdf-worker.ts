@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 import { Worker, Job } from 'bullmq';
 import { redis } from '@/lib/workers/redis';
 import { generatePDF } from '@/lib/workers/pdf-generator';

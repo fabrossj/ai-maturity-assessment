@@ -63,13 +63,31 @@ describe('Assessment API', () => {
   });
 
   afterAll(async () => {
-    // Clean up test data
+    // Clean up test data in correct order (respecting foreign keys)
     await prisma.assessmentResponse.deleteMany({
-      where: { questionnaireVersion: { versionNumber: 999 } },
+      where: { questionnaireVersionId: testVersionId },
     });
-    await prisma.questionnaireVersion.delete({
+
+    // Delete questions first
+    await prisma.question.deleteMany({
+      where: { element: { area: { questionnaireVersionId: testVersionId } } },
+    });
+
+    // Then elements
+    await prisma.element.deleteMany({
+      where: { area: { questionnaireVersionId: testVersionId } },
+    });
+
+    // Then areas
+    await prisma.area.deleteMany({
+      where: { questionnaireVersionId: testVersionId },
+    });
+
+    // Finally the version itself
+    await prisma.questionnaireVersion.deleteMany({
       where: { id: testVersionId },
     });
+
     await prisma.$disconnect();
   });
 

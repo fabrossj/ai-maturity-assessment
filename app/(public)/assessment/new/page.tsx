@@ -21,12 +21,36 @@ export default function NewAssessment() {
   const router = useRouter();
 
   useEffect(() => {
+    console.log('📥 Fetching questionnaire...');
     fetch('/api/questionnaire/latest')
-      .then(res => res.json())
+      .then(res => {
+        console.log('📡 Response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
+        console.log('📦 Data received:', {
+          areas: data.areas?.length,
+          hasAreas: !!data.areas
+        });
+
+        if (!data.areas || !Array.isArray(data.areas)) {
+          throw new Error('Invalid data structure: missing areas');
+        }
+
         const allQuestions: Question[] = [];
         data.areas.forEach((area: any) => {
+          if (!area.elements || !Array.isArray(area.elements)) {
+            console.warn('Area missing elements:', area);
+            return;
+          }
           area.elements.forEach((elem: any) => {
+            if (!elem.questions || !Array.isArray(elem.questions)) {
+              console.warn('Element missing questions:', elem);
+              return;
+            }
             elem.questions.forEach((q: any) => {
               allQuestions.push({
                 ...q,
@@ -36,11 +60,14 @@ export default function NewAssessment() {
             });
           });
         });
+
+        console.log('✅ Questions loaded:', allQuestions.length);
         setQuestions(allQuestions);
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error loading questions:', err);
+        console.error('❌ Error loading questions:', err);
+        alert(`Error loading questionnaire: ${err.message}`);
         setLoading(false);
       });
   }, []);

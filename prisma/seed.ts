@@ -6,9 +6,26 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
+  // Check if version 1 already exists
+  let questionnaireV1 = await prisma.questionnaireVersion.findUnique({
+    where: { versionNumber: 1 },
+  });
+
+  if (questionnaireV1) {
+    console.log('ℹ️  Questionnaire Version 1 already exists, skipping seed...');
+    console.log('\n📊 Existing data in database:');
+    const versionCount = await prisma.questionnaireVersion.count();
+    const areaCount = await prisma.area.count();
+    const userCount = await prisma.user.count();
+    console.log(`- ${versionCount} Questionnaire Version(s)`);
+    console.log(`- ${areaCount} Area(s)`);
+    console.log(`- ${userCount} User(s)`);
+    return;
+  }
+
   // Create questionnaire version 1
   console.log('Creating Questionnaire Version 1...');
-  const questionnaireV1 = await prisma.questionnaireVersion.create({
+  questionnaireV1 = await prisma.questionnaireVersion.create({
     data: {
       versionNumber: 1,
       status: 'PUBLISHED',
@@ -572,28 +589,33 @@ async function main() {
   });
   console.log(`✅ Created Area 5 with ${3} elements`);
 
-  // Create admin users
+  // Create admin users (using upsert to avoid duplicates)
   console.log('Creating admin users...');
   const adminPassword = await bcrypt.hash('admin123', 10);
   const superAdminPassword = await bcrypt.hash('superadmin123', 10);
 
-  await prisma.user.createMany({
-    data: [
-      {
-        email: 'admin@example.com',
-        passwordHash: adminPassword,
-        role: 'ADMIN',
-        name: 'Admin User',
-      },
-      {
-        email: 'superadmin@example.com',
-        passwordHash: superAdminPassword,
-        role: 'SUPER_ADMIN',
-        name: 'Super Admin User',
-      },
-    ],
+  await prisma.user.upsert({
+    where: { email: 'admin@example.com' },
+    update: {},
+    create: {
+      email: 'admin@example.com',
+      passwordHash: adminPassword,
+      role: 'ADMIN',
+      name: 'Admin User',
+    },
   });
-  console.log('✅ Created 2 admin users');
+
+  await prisma.user.upsert({
+    where: { email: 'superadmin@example.com' },
+    update: {},
+    create: {
+      email: 'superadmin@example.com',
+      passwordHash: superAdminPassword,
+      role: 'SUPER_ADMIN',
+      name: 'Super Admin User',
+    },
+  });
+  console.log('✅ Created/verified 2 admin users');
 
   console.log('\n🎉 Database seeding completed successfully!');
   console.log('\n📊 Summary:');

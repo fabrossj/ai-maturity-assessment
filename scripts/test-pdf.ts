@@ -10,8 +10,8 @@ async function testPDFGeneration() {
     const assessment = await prisma.assessmentResponse.findFirst({
       where: {
         status: 'SUBMITTED',
-        NOT: {
-          calculatedScores: null
+        calculatedScores: {
+          not: null
         }
       },
       orderBy: { submittedAt: 'desc' }

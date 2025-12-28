@@ -65,7 +65,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 
     // Return PDF with proper headers
-    return new NextResponse(pdfBuffer, {
+    // Convert Buffer to Uint8Array for NextResponse compatibility
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="AI-Maturity-Report-${params.id}.pdf"`,

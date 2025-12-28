@@ -12,13 +12,18 @@
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:flow": "tsx scripts/test-full-flow.ts",
+    "test:api": "tsx scripts/test-api-endpoints.ts",
+    "test:pdf": "tsx scripts/test-pdf.ts",
+    "test:all": "pnpm vitest run && pnpm test:flow"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
+    "ai-maturity-assessment": "link:",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.66.3",
     "date-fns": "^4.1.0",

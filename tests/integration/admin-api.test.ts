@@ -118,13 +118,70 @@ async function createTestQuestionnaireVersion(versionNumber: number, status: 'DR
   });
 }
 
-// Clean up test data
+// Clean up test data (preserving unit test data with versionNumber 999)
 async function cleanupTestData() {
-  await prisma.assessmentResponse.deleteMany({});
-  await prisma.question.deleteMany({});
-  await prisma.element.deleteMany({});
-  await prisma.area.deleteMany({});
-  await prisma.questionnaireVersion.deleteMany({});
+  // Delete in correct order to respect foreign key constraints
+  try {
+    // First delete all assessment responses except those linked to version 999 (unit tests)
+    await prisma.assessmentResponse.deleteMany({
+      where: {
+        questionnaireVersion: {
+          versionNumber: {
+            not: 999
+          }
+        }
+      }
+    });
+
+    // Then delete the questionnaire structure from bottom to top (except version 999)
+    await prisma.question.deleteMany({
+      where: {
+        element: {
+          area: {
+            questionnaireVersion: {
+              versionNumber: {
+                not: 999
+              }
+            }
+          }
+        }
+      }
+    });
+
+    await prisma.element.deleteMany({
+      where: {
+        area: {
+          questionnaireVersion: {
+            versionNumber: {
+              not: 999
+            }
+          }
+        }
+      }
+    });
+
+    await prisma.area.deleteMany({
+      where: {
+        questionnaireVersion: {
+          versionNumber: {
+            not: 999
+          }
+        }
+      }
+    });
+
+    // Finally delete the versions (except 999)
+    await prisma.questionnaireVersion.deleteMany({
+      where: {
+        versionNumber: {
+          not: 999
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    throw error;
+  }
 }
 
 describe('Admin API Integration Tests', () => {
@@ -139,17 +196,23 @@ describe('Admin API Integration Tests', () => {
 
   describe('Questionnaire Version Management', () => {
     it('should list all questionnaire versions', async () => {
-      // Create test versions
-      await createTestQuestionnaireVersion(1, 'PUBLISHED');
-      await createTestQuestionnaireVersion(2, 'DRAFT');
+      // Create test versions with unique version numbers to avoid conflicts
+      const v1 = await createTestQuestionnaireVersion(100, 'PUBLISHED');
+      const v2 = await createTestQuestionnaireVersion(200, 'DRAFT');
 
+      // Query only the versions we created in this test
       const versions = await prisma.questionnaireVersion.findMany({
+        where: {
+          id: {
+            in: [v1.id, v2.id]
+          }
+        },
         orderBy: { versionNumber: 'desc' }
       });
 
       expect(versions).toHaveLength(2);
-      expect(versions[0].versionNumber).toBe(2);
-      expect(versions[1].versionNumber).toBe(1);
+      expect(versions[0].versionNumber).toBe(200);
+      expect(versions[1].versionNumber).toBe(100);
     });
 
     it('should get a specific questionnaire version', async () => {

@@ -11,6 +11,9 @@ importers:
       '@prisma/client':
         specifier: 5.22.0
         version: 5.22.0(prisma@5.22.0)
+      ai-maturity-assessment:
+        specifier: 'link:'
+        version: 'link:'
       bcrypt:
         specifier: ^6.0.0
         version: 6.0.0
