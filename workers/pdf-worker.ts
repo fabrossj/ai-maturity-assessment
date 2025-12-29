@@ -4,6 +4,7 @@ import { Worker, Job } from 'bullmq';
 import { redis } from '@/lib/workers/redis';
 import { generatePDF } from '@/lib/workers/pdf-generator';
 import { prisma } from '@/lib/db';
+import { enqueueEmailSending } from '@/lib/workers/queue';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -50,6 +51,11 @@ const worker = new Worker<PDFJobData>(
       });
 
       console.log(`✅ Assessment ${assessmentId} status updated to PDF_GENERATED`);
+
+      // Enqueue email sending after PDF is generated
+      console.log(`📧 Enqueuing email sending for assessment: ${assessmentId}`);
+      await enqueueEmailSending({ assessmentId });
+      console.log(`✅ Email job enqueued for assessment: ${assessmentId}`);
 
       return { filename, size: pdf.length };
     } catch (error) {

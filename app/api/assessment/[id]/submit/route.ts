@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { calculateFullAssessment } from '@/lib/scoring/formulas';
-import { pdfQueue } from '@/lib/queues/setup';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -51,13 +50,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     });
     console.log('✅ Database updated successfully');
 
-    console.log('📋 Enqueuing PDF generation job...');
+    // Prova ad accodare PDF/email (OPZIONALE - skip se Redis non disponibile)
+    console.log('📋 Attempting to enqueue PDF generation job...');
     try {
+      const { pdfQueue } = await import('@/lib/queues/setup');
       await pdfQueue.add('generate-pdf', { assessmentId: params.id });
       console.log('✅ PDF job enqueued successfully');
     } catch (queueError) {
-      console.error('⚠️ Failed to enqueue PDF job (non-critical):', queueError);
-      // Don't fail the submission if PDF queue fails
+      console.warn('⚠️ Queue unavailable, PDF generation skipped:', queueError instanceof Error ? queueError.message : 'Unknown error');
+      // Non fallire - continua normalmente
     }
 
     console.log('🎉 Submit complete for assessment:', params.id);

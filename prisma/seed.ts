@@ -1,3 +1,9 @@
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Carica .env.local
+dotenv.config({ path: path.join(__dirname, '../.env.local') });
+
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
