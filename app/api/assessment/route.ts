@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { randomBytes } from 'crypto';
 import { z } from 'zod';
+import { rateLimit } from '@/lib/middleware/rate-limit-simple';
 
 const createSchema = z.object({
   userEmail: z.string().email(),
@@ -11,6 +12,19 @@ const createSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    // Apply rate limiting
+    const rateLimitResult = await rateLimit(req);
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        {
+          status: 429,
+          headers: rateLimitResult.headers
+        }
+      );
+    }
+
     const body = await req.json();
     const { userEmail, userName, consentGiven } = createSchema.parse(body);
 
@@ -37,7 +51,10 @@ export async function POST(req: Request) {
       }
     });
 
-    return NextResponse.json({ id: assessment.id, token }, { status: 201 });
+    return NextResponse.json(
+      { id: assessment.id, token },
+      { status: 201, headers: rateLimitResult.headers }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues }, { status: 400 });

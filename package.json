@@ -18,6 +18,7 @@
     "test:api": "tsx scripts/test-api-endpoints.ts",
     "test:pdf": "tsx scripts/test-pdf.ts",
     "test:email": "tsx scripts/test-email.ts",
+    "test:security": "tsx scripts/test-security.ts",
     "test:all": "pnpm vitest run && pnpm test:flow"
   },
   "prisma": {
@@ -25,6 +26,8 @@
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
+    "@upstash/ratelimit": "^2.0.7",
+    "@upstash/redis": "^1.36.0",
     "ai-maturity-assessment": "link:",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.66.3",
