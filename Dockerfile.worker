@@ -1,0 +1,75 @@
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies with frozen lockfile
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Stage 2: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy application code
+COPY . .
+
+# Generate Prisma Client
+RUN pnpm prisma generate
+
+# Stage 3: Runner (Production)
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Set production environment
+ENV NODE_ENV=production
+
+# Install Chromium for Puppeteer (PDF generation worker)
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Configure Puppeteer to use system Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+# Install tsx globally for running TypeScript
+RUN npm install -g tsx pnpm
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 worker
+
+# Copy necessary files from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/workers ./workers
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package.json ./
+
+# Set correct permissions
+RUN chown -R worker:nodejs /app
+
+# Switch to non-root user
+USER worker
+
+# The worker script will be passed as a build argument
+ARG WORKER_SCRIPT
+ENV WORKER_SCRIPT=${WORKER_SCRIPT}
+
+# Start the worker
+CMD tsx workers/${WORKER_SCRIPT}

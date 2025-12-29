@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pdfQueue } from '@/lib/queues/setup';
 
+// Force dynamic rendering - don't pre-render at build time
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const [waiting, active, completed, failed, delayed] = await Promise.all([
