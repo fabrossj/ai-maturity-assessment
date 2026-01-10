@@ -1,12 +1,20 @@
 import { Queue } from 'bullmq';
-import { getRedis } from './redis';
+import { getRedis, isRedisAvailable } from './redis';
 
 // Lazy singletons - Queues are created only when first accessed
 let pdfQueueInstance: Queue | null = null;
 let emailQueueInstance: Queue | null = null;
 
 /**
+ * Check if queue service is available
+ */
+export function isQueueAvailable(): boolean {
+  return isRedisAvailable();
+}
+
+/**
  * Get PDF Queue instance (lazy initialization)
+ * Throws error on Vercel where Redis is not available
  */
 export function getPdfQueue(): Queue {
   if (!pdfQueueInstance) {
@@ -33,6 +41,7 @@ export function getPdfQueue(): Queue {
 
 /**
  * Get Email Queue instance (lazy initialization)
+ * Throws error on Vercel where Redis is not available
  */
 export function getEmailQueue(): Queue {
   if (!emailQueueInstance) {
@@ -56,34 +65,6 @@ export function getEmailQueue(): Queue {
   }
   return emailQueueInstance;
 }
-
-/**
- * @deprecated Use getPdfQueue() instead for lazy initialization
- */
-export const pdfQueue = new Proxy({} as Queue, {
-  get(_target, prop: keyof Queue) {
-    const instance = getPdfQueue();
-    const value = instance[prop];
-    if (typeof value === 'function') {
-      return value.bind(instance);
-    }
-    return value;
-  }
-});
-
-/**
- * @deprecated Use getEmailQueue() instead for lazy initialization
- */
-export const emailQueue = new Proxy({} as Queue, {
-  get(_target, prop: keyof Queue) {
-    const instance = getEmailQueue();
-    const value = instance[prop];
-    if (typeof value === 'function') {
-      return value.bind(instance);
-    }
-    return value;
-  }
-});
 
 interface EnqueuePDFOptions {
   assessmentId: string;

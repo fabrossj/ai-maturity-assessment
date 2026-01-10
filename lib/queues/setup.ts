@@ -1,12 +1,20 @@
 import { Queue } from 'bullmq';
-import { getRedis } from '@/lib/workers/redis';
+import { getRedis, isRedisAvailable } from '@/lib/workers/redis';
 
 // Lazy singleton - Queue is created only when first accessed
 let pdfQueueInstance: Queue | null = null;
 
 /**
+ * Check if queue service is available
+ */
+export function isQueueAvailable(): boolean {
+  return isRedisAvailable();
+}
+
+/**
  * Get PDF Queue instance (lazy initialization)
  * Queue is only created when this function is first called
+ * Throws error on Vercel where Redis is not available
  */
 export function getPdfQueue(): Queue {
   if (!pdfQueueInstance) {
@@ -32,16 +40,16 @@ export function getPdfQueue(): Queue {
 }
 
 /**
- * @deprecated Use getPdfQueue() instead for lazy initialization
- * This export uses a Proxy for backward compatibility
+ * Proxy for backward compatibility - throws immediately on Vercel
  */
-export const pdfQueue = new Proxy({} as Queue, {
-  get(_target, prop: keyof Queue) {
-    const instance = getPdfQueue();
-    const value = instance[prop];
-    if (typeof value === 'function') {
-      return value.bind(instance);
-    }
-    return value;
-  }
-});
+export const pdfQueue = {
+  add: async (...args: Parameters<Queue['add']>) => getPdfQueue().add(...args),
+  getWaitingCount: async () => getPdfQueue().getWaitingCount(),
+  getActiveCount: async () => getPdfQueue().getActiveCount(),
+  getCompletedCount: async () => getPdfQueue().getCompletedCount(),
+  getFailedCount: async () => getPdfQueue().getFailedCount(),
+  getDelayedCount: async () => getPdfQueue().getDelayedCount(),
+  getWaiting: async (...args: Parameters<Queue['getWaiting']>) => getPdfQueue().getWaiting(...args),
+  getActive: async (...args: Parameters<Queue['getActive']>) => getPdfQueue().getActive(...args),
+  getFailed: async (...args: Parameters<Queue['getFailed']>) => getPdfQueue().getFailed(...args),
+};
