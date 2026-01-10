@@ -28,17 +28,3 @@ export function getRedis(): Redis {
   return redisInstance;
 }
 
-/**
- * @deprecated Use getRedis() instead for lazy initialization
- * This export is kept for backward compatibility but will trigger connection on import
- */
-export const redis = new Proxy({} as Redis, {
-  get(_target, prop: keyof Redis) {
-    const instance = getRedis();
-    const value = instance[prop];
-    if (typeof value === 'function') {
-      return value.bind(instance);
-    }
-    return value;
-  }
-});
