@@ -1,39 +1,87 @@
 import { Queue } from 'bullmq';
-import { redis } from './redis';
+import { getRedis } from './redis';
 
-export const pdfQueue = new Queue('pdf-generation', {
-  connection: redis,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 5000
-    },
-    removeOnComplete: {
-      age: 24 * 3600, // Keep completed jobs for 24 hours
-      count: 1000
-    },
-    removeOnFail: {
-      age: 7 * 24 * 3600 // Keep failed jobs for 7 days
+// Lazy singletons - Queues are created only when first accessed
+let pdfQueueInstance: Queue | null = null;
+let emailQueueInstance: Queue | null = null;
+
+/**
+ * Get PDF Queue instance (lazy initialization)
+ */
+export function getPdfQueue(): Queue {
+  if (!pdfQueueInstance) {
+    pdfQueueInstance = new Queue('pdf-generation', {
+      connection: getRedis(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000
+        },
+        removeOnComplete: {
+          age: 24 * 3600, // Keep completed jobs for 24 hours
+          count: 1000
+        },
+        removeOnFail: {
+          age: 7 * 24 * 3600 // Keep failed jobs for 7 days
+        }
+      }
+    });
+  }
+  return pdfQueueInstance;
+}
+
+/**
+ * Get Email Queue instance (lazy initialization)
+ */
+export function getEmailQueue(): Queue {
+  if (!emailQueueInstance) {
+    emailQueueInstance = new Queue('email-sending', {
+      connection: getRedis(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 10000
+        },
+        removeOnComplete: {
+          age: 24 * 3600, // Keep completed jobs for 24 hours
+          count: 1000
+        },
+        removeOnFail: {
+          age: 7 * 24 * 3600 // Keep failed jobs for 7 days
+        }
+      }
+    });
+  }
+  return emailQueueInstance;
+}
+
+/**
+ * @deprecated Use getPdfQueue() instead for lazy initialization
+ */
+export const pdfQueue = new Proxy({} as Queue, {
+  get(_target, prop: keyof Queue) {
+    const instance = getPdfQueue();
+    const value = instance[prop];
+    if (typeof value === 'function') {
+      return value.bind(instance);
     }
+    return value;
   }
 });
 
-export const emailQueue = new Queue('email-sending', {
-  connection: redis,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 10000
-    },
-    removeOnComplete: {
-      age: 24 * 3600, // Keep completed jobs for 24 hours
-      count: 1000
-    },
-    removeOnFail: {
-      age: 7 * 24 * 3600 // Keep failed jobs for 7 days
+/**
+ * @deprecated Use getEmailQueue() instead for lazy initialization
+ */
+export const emailQueue = new Proxy({} as Queue, {
+  get(_target, prop: keyof Queue) {
+    const instance = getEmailQueue();
+    const value = instance[prop];
+    if (typeof value === 'function') {
+      return value.bind(instance);
     }
+    return value;
   }
 });
 
@@ -43,7 +91,8 @@ interface EnqueuePDFOptions {
 }
 
 export async function enqueuePDFGeneration({ assessmentId, priority = 5 }: EnqueuePDFOptions) {
-  const job = await pdfQueue.add(
+  const queue = getPdfQueue();
+  const job = await queue.add(
     'generate-pdf',
     { assessmentId },
     {
@@ -58,7 +107,8 @@ export async function enqueuePDFGeneration({ assessmentId, priority = 5 }: Enque
 }
 
 export async function getJobStatus(jobId: string) {
-  const job = await pdfQueue.getJob(jobId);
+  const queue = getPdfQueue();
+  const job = await queue.getJob(jobId);
 
   if (!job) {
     return null;
@@ -85,7 +135,8 @@ interface EnqueueEmailOptions {
 }
 
 export async function enqueueEmailSending({ assessmentId, priority = 5 }: EnqueueEmailOptions) {
-  const job = await emailQueue.add(
+  const queue = getEmailQueue();
+  const job = await queue.add(
     'send-email',
     { assessmentId },
     {
@@ -100,7 +151,8 @@ export async function enqueueEmailSending({ assessmentId, priority = 5 }: Enqueu
 }
 
 export async function getEmailJobStatus(jobId: string) {
-  const job = await emailQueue.getJob(jobId);
+  const queue = getEmailQueue();
+  const job = await queue.getJob(jobId);
 
   if (!job) {
     return null;

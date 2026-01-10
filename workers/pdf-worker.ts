@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 import { Worker, Job } from 'bullmq';
-import { redis } from '@/lib/workers/redis';
+import { getRedis } from '@/lib/workers/redis';
 import { generatePDF } from '@/lib/workers/pdf-generator';
 import { prisma } from '@/lib/db';
 import { enqueueEmailSending } from '@/lib/workers/queue';
@@ -70,7 +70,7 @@ const worker = new Worker<PDFJobData>(
     }
   },
   {
-    connection: redis,
+    connection: getRedis(),
     concurrency: 2,
     limiter: {
       max: 10,
@@ -96,13 +96,13 @@ console.log('🚀 PDF worker started and listening for jobs...');
 process.on('SIGTERM', async () => {
   console.log('📴 SIGTERM received, closing worker...');
   await worker.close();
-  await redis.quit();
+  await getRedis().quit();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('📴 SIGINT received, closing worker...');
   await worker.close();
-  await redis.quit();
+  await getRedis().quit();
   process.exit(0);
 });

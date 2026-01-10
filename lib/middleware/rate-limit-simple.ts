@@ -2,12 +2,10 @@
  * Simple rate limiting implementation using ioredis (for local development)
  * This is an alternative to the Upstash-based rate limiting
  *
- * To use this instead:
- * 1. Replace imports in API routes from '@/lib/middleware/rate-limit' to '@/lib/middleware/rate-limit-simple'
- * 2. Remove UPSTASH_REDIS_* environment variables
+ * Uses lazy Redis initialization to avoid connection on module load
  */
 
-import { redis } from '@/lib/workers/redis';
+import { getRedis } from '@/lib/workers/redis';
 
 interface RateLimitResult {
   success: boolean;
@@ -30,6 +28,9 @@ export async function rateLimit(
   const windowStart = now - windowMs;
 
   try {
+    // Get Redis instance (lazy - only connects when first used)
+    const redis = getRedis();
+
     // Remove old entries outside the window
     await redis.zremrangebyscore(key, 0, windowStart);
 

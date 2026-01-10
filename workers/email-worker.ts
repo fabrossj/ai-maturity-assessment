@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local', override: true });
 import { Worker, Job } from 'bullmq';
-import { redis } from '@/lib/workers/redis';
+import { getRedis } from '@/lib/workers/redis';
 import { prisma } from '@/lib/db';
 import nodemailer from 'nodemailer';
 import path from 'path';
@@ -96,7 +96,7 @@ const worker = new Worker<EmailJobData>(
     }
   },
   {
-    connection: redis,
+    connection: getRedis(),
     concurrency: 5,
     limiter: {
       max: 20,
@@ -197,13 +197,13 @@ console.log('🚀 Email worker started and listening for jobs...');
 process.on('SIGTERM', async () => {
   console.log('📴 SIGTERM received, closing worker...');
   await worker.close();
-  await redis.quit();
+  await getRedis().quit();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('📴 SIGINT received, closing worker...');
   await worker.close();
-  await redis.quit();
+  await getRedis().quit();
   process.exit(0);
 });
