@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { calculateFullAssessment } from '@/lib/scoring/formulas';
+import { generatePDF } from '@/lib/workers/pdf-generator';
+import { sendAssessmentEmail } from '@/lib/email/send-assessment-email';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, { params }: { params: { id: string } }) {
   try {
     console.log('📤 Starting submit for assessment:', params.id);
 
@@ -50,15 +52,49 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     });
     console.log('✅ Database updated successfully');
 
-    // Prova ad accodare PDF/email (OPZIONALE - skip se Redis non disponibile)
-    console.log('📋 Attempting to enqueue PDF generation job...');
+    // Generate PDF and send email directly (for Vercel compatibility)
+    // This runs in the same request but doesn't block the response on failure
+    console.log('📄 Generating PDF and sending email...');
     try {
-      const { pdfQueue } = await import('@/lib/queues/setup');
-      await pdfQueue.add('generate-pdf', { assessmentId: params.id });
-      console.log('✅ PDF job enqueued successfully');
-    } catch (queueError) {
-      console.warn('⚠️ Queue unavailable, PDF generation skipped:', queueError instanceof Error ? queueError.message : 'Unknown error');
-      // Non fallire - continua normalmente
+      const pdfBuffer = await generatePDF(params.id);
+      console.log('✅ PDF generated, size:', pdfBuffer.length, 'bytes');
+
+      await sendAssessmentEmail({
+        to: assessment.userEmail,
+        assessmentId: params.id,
+        pdfBuffer,
+        scores: {
+          totalScore: scores.totalScore,
+          maturityLevel: scores.maturityLevel
+        },
+        userName: assessment.userName
+      });
+
+      // Update status to EMAIL_SENT
+      await prisma.assessmentResponse.update({
+        where: { id: params.id },
+        data: {
+          pdfGeneratedAt: new Date(),
+          emailSentAt: new Date(),
+          status: 'EMAIL_SENT'
+        }
+      });
+      console.log('✅ Email sent and status updated to EMAIL_SENT');
+
+    } catch (emailError) {
+      // Email/PDF failure should not block the submit response
+      console.error('⚠️ PDF/Email failed (non-blocking):',
+        emailError instanceof Error ? emailError.message : 'Unknown error'
+      );
+
+      // Update status to indicate PDF was generated but email failed
+      await prisma.assessmentResponse.update({
+        where: { id: params.id },
+        data: {
+          status: 'PDF_GENERATED',
+          pdfGeneratedAt: new Date()
+        }
+      }).catch(err => console.error('Failed to update status:', err));
     }
 
     console.log('🎉 Submit complete for assessment:', params.id);
@@ -69,8 +105,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     console.error('Error details:', error);
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
 
-    // Return error but don't set status to FAILED in database
-    // The database should remain in its current state
     return NextResponse.json(
       {
         error: 'Failed to submit assessment',
