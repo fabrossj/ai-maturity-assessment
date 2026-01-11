@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { generatePDF } from '@/lib/workers/pdf-generator';
-import fs from 'fs/promises';
-import path from 'path';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -24,48 +22,28 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: 'Assessment not submitted yet' }, { status: 400 });
     }
 
-    // Check if PDF already exists
-    const pdfDir = path.join(process.cwd(), 'public', 'pdfs');
-    const filename = `assessment-${params.id}.pdf`;
-    const filepath = path.join(pdfDir, filename);
-
-    let pdfBuffer: Buffer;
-
-    try {
-      // Try to read existing PDF
-      pdfBuffer = await fs.readFile(filepath);
-      console.log('✅ Serving existing PDF:', filename);
-    } catch (error) {
-      // PDF doesn't exist, generate it
-      console.log('📄 PDF not found, generating new one...');
-
-      if (!assessment.calculatedScores) {
-        console.log('❌ Assessment has no calculated scores');
-        return NextResponse.json({ error: 'Assessment has no scores' }, { status: 400 });
-      }
-
-      // Generate PDF
-      pdfBuffer = await generatePDF(params.id);
-
-      // Save PDF to disk for future requests
-      await fs.mkdir(pdfDir, { recursive: true });
-      await fs.writeFile(filepath, pdfBuffer);
-
-      // Update database with PDF URL
-      await prisma.assessmentResponse.update({
-        where: { id: params.id },
-        data: {
-          pdfUrl: `/pdfs/${filename}`,
-          pdfGeneratedAt: new Date(),
-          status: assessment.status === 'SUBMITTED' ? 'PDF_GENERATED' : assessment.status
-        }
-      });
-
-      console.log('✅ PDF generated and saved:', filename);
+    if (!assessment.calculatedScores) {
+      console.log('❌ Assessment has no calculated scores');
+      return NextResponse.json({ error: 'Assessment has no scores' }, { status: 400 });
     }
 
-    // Return PDF with proper headers
-    // Convert Buffer to Uint8Array for NextResponse compatibility
+    // Generate PDF in memory (no filesystem access needed)
+    console.log('📄 Generating PDF...');
+    const pdfBuffer = await generatePDF(params.id);
+    console.log('✅ PDF generated successfully');
+
+    // Update database status if needed (non-blocking)
+    if (assessment.status === 'SUBMITTED') {
+      prisma.assessmentResponse.update({
+        where: { id: params.id },
+        data: {
+          pdfGeneratedAt: new Date(),
+          status: 'PDF_GENERATED'
+        }
+      }).catch(err => console.error('Failed to update status:', err));
+    }
+
+    // Return PDF directly from memory
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
@@ -75,7 +53,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     });
 
   } catch (error) {
-    console.error('❌ Error generating/serving PDF:', error);
+    console.error('❌ Error generating PDF:', error);
     return NextResponse.json(
       {
         error: 'Failed to generate PDF',
